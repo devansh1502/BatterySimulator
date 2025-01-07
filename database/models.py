@@ -7,8 +7,8 @@ class Battery(Base):
     battery_id: Mapped[str] = mapped_column(primary_key=True)
     capacity_kwh: Mapped[float] = mapped_column(nullable=False)
     maximum_power_kw: Mapped[float] = mapped_column(nullable=False)
-    state_of_charge: Mapped[float] = mapped_column(nullable=False, default=0.5)  # 50% charged when created
-    cycles: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    state_of_charge: Mapped[int] = mapped_column(nullable=False, default=50)  # 50% charged when created
+    cycles: Mapped[float] = mapped_column(nullable=False, default=0.0) # 0 cycles when created
 
     def to_dict(self):
         # Convert the battery instance to a dictionary
@@ -16,6 +16,6 @@ class Battery(Base):
             "battery_id": self.battery_id,
             "capacity_kwh": self.capacity_kwh,
             "maximum_power_kw": self.maximum_power_kw,
-            "state_of_charge": self.state_of_charge,
+            "state_of_charge": str(self.state_of_charge)+"%",
             "cycles": self.cycles
         }
