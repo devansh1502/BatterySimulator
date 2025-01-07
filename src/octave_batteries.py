@@ -6,21 +6,20 @@ import paho.mqtt.client as paho
 from threading import Lock
 from datetime import datetime
 
-batteries_lock = Lock()
 logger = logging.getLogger(__name__)
 
 class OctaveBattery:
     # TODO: check if default values required for state of charge and cycles here
-    def __init__(self, battery_id, capacity, maximum_power, state_of_charge=50, cycles=0.0):
+    def __init__(self, battery_id, capacity, maximum_power, state_of_charge, cycles):
         self.battery_id = battery_id
         self.capacity_kwh = capacity  # kWh
         self.maximum_power_kw = maximum_power  # kW
-        self.state_of_charge = min(max(state_of_charge, 0), 100)  # Clamp SoC between 0 and 100
+        self.state_of_charge = min(max(state_of_charge, 0), 100)  # Soc can be in a valid range of 0-100
         self.cycles = cycles
         self.client = self.get_paho_client()
 
     # Charges with default duration of 1 hour
-    def charge(self, power, duration=1):
+    def charge(self, power, duration):
         # Charging should be limited to max power
         charging_power = min(power, self.maximum_power_kw)
 
@@ -37,12 +36,15 @@ class OctaveBattery:
         self.state_of_charge = min(max(new_soc, 0), 100)
         return self
 
-    def discharge(self, power, duration=1):
+    def discharge(self, power, duration):
         # Discharging should be limited to max power
         discharging_power = max(power, -self.maximum_power_kw)
 
         # Calculating energy change
         energy_consumed = discharging_power * duration
+
+        # Before Discharge battery soc
+        before_discharge_soc = self.state_of_charge
 
         # Calculating new SOC
         new_soc = int(self.state_of_charge + (energy_consumed / self.capacity_kwh) * 100)
@@ -50,10 +52,13 @@ class OctaveBattery:
         # Soc should be in valid range of 0 to 100
         self.state_of_charge = min(max(new_soc, 0), 100)
 
+        # After Discharge battery soc
+        after_discharge_soc = self.state_of_charge
+
         # Update cycle count
         # TODO: need to check rounding up of cycle count and cycle count login
         if new_soc >= 0:
-            self.cycles += round((abs(energy_consumed) / self.capacity_kwh), 2)
+            self.cycles += (before_discharge_soc - after_discharge_soc)/100
         return self
 
     def get_warning(self):
