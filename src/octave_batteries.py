@@ -1,9 +1,11 @@
 import json
 import os
+from datetime import datetime
+
 import paho.mqtt.client as paho
 
-from datetime import datetime
 from utils.utils import logger
+
 
 class OctaveBattery:
     def __init__(self, battery_id, capacity, maximum_power, state_of_charge, cycles):
@@ -33,28 +35,32 @@ class OctaveBattery:
         discharging_power = max(power, -self.maximum_power_kw)
         energy_consumed = discharging_power * duration
 
-        before_discharge_soc = self.state_of_charge # Before Discharge battery soc
+        before_discharge_soc = self.state_of_charge  # Before Discharge battery soc
 
         new_soc = int(self.state_of_charge + (energy_consumed / self.capacity_kwh) * 100)
         self.state_of_charge = min(max(new_soc, 0), 100)
 
-        after_discharge_soc = self.state_of_charge # After Discharge battery soc
+        after_discharge_soc = self.state_of_charge  # After Discharge battery soc
 
         self.cycles += (before_discharge_soc - after_discharge_soc) / 100 #Updating Cycle count
         return self
 
-    def get_warning(self):
+    def check_warning(self):
+        warning = ""
         if self.state_of_charge > 90:
-            return f"Current State of charge is over 90%: {self.state_of_charge}%"
+            warning = f"Current State of charge is over 90%: {self.state_of_charge}%"
         elif self.state_of_charge < 10:
-            return f"Current State of charge is below 10%: {self.state_of_charge}%"
-        return None
+            warning = f"Current State of charge is below 10%: {self.state_of_charge}%"
 
-    def publish_warning(self, warning_type):
-        if self.client.is_connected():
+        print("warning", warning)
+        if (
+            self.client is not None
+            and self.client.is_connected()
+            and warning is not None
+        ):
             topic = f"/warnings/{self.battery_id}"
             payload = {
-                "warning": warning_type,
+                "warning": warning,
                 "timestamp": datetime.now().isoformat(),
             }
             self.client.publish(topic, json.dumps(payload), qos=1)
@@ -71,8 +77,9 @@ class OctaveBattery:
         client.username_pw_set(USERNAME, PASSWORD)
 
         try:
-            client.connect(HOSTNAME, PORT)
+            err = client.connect(HOSTNAME, PORT)
+            if err is None:
+                return client
+            logger.error(f"Error connecting to MQTT broker: {err}")
         except Exception as e:
             logger.error(f"Error connecting to MQTT broker: {e}")
-
-        return client

@@ -1,31 +1,31 @@
-from flask import Flask, request, jsonify
 from uuid import uuid4
+
+from flask import Flask, jsonify, request
+from pydantic import ValidationError
 
 from database.db import Session
 from database.models import Battery, CreateBattery, UpdateBattery
-from pydantic import ValidationError
-
 from src.octave_batteries import OctaveBattery
 from utils.utils import logger
 
 app = Flask(__name__)
+
 
 @app.route("/get", methods=["GET"])
 def get_all_batteries():
     try:
         session = Session()
         query = session.query(Battery)
-        limit = request.args.get('limit', type=int, default=10)
-        offset = request.args.get('offset', type=int, default=0)
+        limit = request.args.get("limit", type=int, default=10)
+        offset = request.args.get("offset", type=int, default=0)
 
-
-        total = query.count() # counting total values before setting limit and offset
-        query = query.limit(limit).offset(offset) # setting limit and offset
+        total = query.count()  # counting total values before setting limit and offset
+        query = query.limit(limit).offset(offset)  # setting limit and offset
 
         rows = query.all()
         batteries = [b.to_dict() for b in rows]
 
-        next_offset = offset + limit # setting next offset
+        next_offset = offset + limit  # setting next offset
         next_link = None
         if next_offset < total:
             next_link = f"?limit={limit}&offset={next_offset}"
@@ -44,6 +44,7 @@ def get_all_batteries():
 
     finally:
         session.close()
+
 
 @app.route("/<battery_id>", methods=["GET"])
 def get_battery(battery_id):
@@ -65,6 +66,7 @@ def get_battery(battery_id):
     finally:
         session.close()
 
+
 @app.route("/", methods=["POST"])
 def create_battery():
     try:
@@ -74,9 +76,9 @@ def create_battery():
         validated = CreateBattery(**data)
 
         battery = Battery(
-            battery_id = str(uuid4()),
-            capacity_kwh = validated.capacity_kwh,
-            maximum_power_kw= validated.maximum_power_kw
+            battery_id=str(uuid4()),
+            capacity_kwh=validated.capacity_kwh,
+            maximum_power_kw=validated.maximum_power_kw,
         )
 
         session.add(battery)
@@ -99,6 +101,7 @@ def create_battery():
 
     finally:
         session.close()
+
 
 @app.route("/<battery_id>", methods=["DELETE"])
 def delete_battery(battery_id):
@@ -124,17 +127,18 @@ def delete_battery(battery_id):
     finally:
         session.close()
 
+
 @app.route("/update", methods=["PATCH"])
 def update_battery():
     try:
         data = {
-            "battery_id": request.args.get('battery_id', type=str),
-            "power": request.args.get('power', type=int),
-            "duration": request.args.get('duration', type=int)
+            "battery_id": request.args.get("battery_id", type=str),
+            "power": request.args.get("power", type=int),
+            "duration": request.args.get("duration", type=int),
         }
         validated = UpdateBattery(**data)
 
-        duration_in_hours = validated.duration / 60 # Converting minutes to hours
+        duration_in_hours = validated.duration / 60  # Converting minutes to hours
         session = Session()
 
         query = session.query(Battery)
@@ -156,8 +160,7 @@ def update_battery():
         elif validated.power < 0:
             ob.discharge(validated.power, duration_in_hours)
 
-
-        ob.check_warning() #checking and publishing warning if any
+        ob.check_warning()  # checking and publishing warning if any
 
         battery_details.battery_id = ob.battery_id
         battery_details.capacity_kwh = ob.capacity_kwh
@@ -179,9 +182,10 @@ def update_battery():
         logger.error(f"Internal Server Error: {e}, status code: 500")
         return jsonify({"Internal Server Error": str(e)}), 500
 
+
 @app.route("/soc", methods=["GET"])
 def get_soc():
-    battery_id = request.args.get('battery_id', type=str)
+    battery_id = request.args.get("battery_id", type=str)
     try:
         session = Session()
         query = session.query(Battery)
@@ -210,9 +214,10 @@ def get_soc():
     finally:
         session.close()
 
+
 @app.route("/cycles", methods=["GET"])
 def get_cycles():
-    battery_id = request.args.get('battery_id', type=str)
+    battery_id = request.args.get("battery_id", type=str)
     try:
         session = Session()
         query = session.query(Battery)
