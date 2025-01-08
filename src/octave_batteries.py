@@ -16,43 +16,31 @@ class OctaveBattery:
 
     # Charges with default duration of 1 hour
     def charge(self, power, duration):
-        # Charging should be limited to max power
-        charging_power = min(power, self.maximum_power_kw)
-
-        # Calculating energy change
-        energy_added = charging_power * duration
+        charging_power = min(power, self.maximum_power_kw) # Charging should be limited to max power
+        energy_added = charging_power * duration # Calculating energy change
 
         # Calculating new SOC
-        # Different sized batteries can have different SOC changes wrt same energy added. Therefore it is
-        # important to take capacity into account. Example 2 KW energy change for a 10 kwh battery would
+        # Different sized batteries can have different SOC changes wrt same energy added. It is
+        # important to take cap into account. Example: 2 KW energy change for a 10 kwh battery would
         # mean a 20% change in Soc and for a 100 kwh battery it would be 2%.
         new_soc = int(self.state_of_charge + (energy_added / self.capacity_kwh) * 100)
 
-        # Soc should be in valid range of 0 to 100
-        self.state_of_charge = min(max(new_soc, 0), 100)
+        self.state_of_charge = min(max(new_soc, 0), 100) # Soc should be in valid range of 0 to 100
         return self
 
     def discharge(self, power, duration):
         # Discharging should be limited to max power
         discharging_power = max(power, -self.maximum_power_kw)
-
-        # Calculating energy change
         energy_consumed = discharging_power * duration
 
-        # Before Discharge battery soc
-        before_discharge_soc = self.state_of_charge
+        before_discharge_soc = self.state_of_charge # Before Discharge battery soc
 
-        # Calculating new SOC
         new_soc = int(self.state_of_charge + (energy_consumed / self.capacity_kwh) * 100)
-
-        # Soc should be in valid range of 0 to 100
         self.state_of_charge = min(max(new_soc, 0), 100)
 
-        # After Discharge battery soc
-        after_discharge_soc = self.state_of_charge
+        after_discharge_soc = self.state_of_charge # After Discharge battery soc
 
-        # Update cycle count
-        self.cycles += (before_discharge_soc - after_discharge_soc) / 100
+        self.cycles += (before_discharge_soc - after_discharge_soc) / 100 #Updating Cycle count
         return self
 
     def get_warning(self):

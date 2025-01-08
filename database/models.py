@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column
 from database.db import Base
+from pydantic import BaseModel, Field
+from typing import Optional
 
 class Battery(Base):
     __tablename__ = 'batteries'
@@ -19,3 +21,18 @@ class Battery(Base):
             "state_of_charge": str(self.state_of_charge)+"%",
             "cycles": self.cycles
         }
+
+class GetBatteryID(BaseModel):
+    battery_id: str = Field(..., description="Unique Battery ID")
+
+class GetBatteryIDOptional(BaseModel):
+    battery_id: Optional[str] = Field(..., description="Unique Battery ID")
+
+class CreateBattery(BaseModel):
+    capacity_kwh: float = Field(..., gt=0, description="Capacity should be greater than 0")
+    maximum_power_kw: float = Field(..., gt=0, description="Maximum power should be greater than 0")
+
+class UpdateBattery(BaseModel):
+    battery_id: str = Field(..., description="Unique Battery ID")
+    power: int = Field(..., description="Kw power, +ve for charge and -ve for discharge")
+    duration: int = Field(..., gt=0, description="Duration in minutes")

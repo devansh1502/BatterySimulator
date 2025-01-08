@@ -9,4 +9,4 @@ format:
 test:
 	pytest tests
 	coverage run -m pytest --failed-first -vv
-	coverage report
+	coverage report -m
