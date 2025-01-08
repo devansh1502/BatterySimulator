@@ -1,15 +1,11 @@
-import logging
 import json
 import os
 import paho.mqtt.client as paho
 
-from threading import Lock
 from datetime import datetime
-
-logger = logging.getLogger(__name__)
+from utils.utils import logger
 
 class OctaveBattery:
-    # TODO: check if default values required for state of charge and cycles here
     def __init__(self, battery_id, capacity, maximum_power, state_of_charge, cycles):
         self.battery_id = battery_id
         self.capacity_kwh = capacity  # kWh
@@ -56,9 +52,7 @@ class OctaveBattery:
         after_discharge_soc = self.state_of_charge
 
         # Update cycle count
-        # TODO: need to check rounding up of cycle count and cycle count login
-        if new_soc >= 0:
-            self.cycles += (before_discharge_soc - after_discharge_soc)/100
+        self.cycles += (before_discharge_soc - after_discharge_soc) / 100
         return self
 
     def get_warning(self):
@@ -73,22 +67,24 @@ class OctaveBattery:
             topic = f"/warnings/{self.battery_id}"
             payload = {
                 "warning": warning_type,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
             self.client.publish(topic, json.dumps(payload), qos=1)
         else:
-            logger.warning(f"Warning: MQTT client not connected. Could not publish warning for battery {self.battery_id}")
-
-        self.client.disconnect()
+            logger.error(f"Error: MQTT client not connected. Could not publish warning for battery {self.battery_id}")
 
     def get_paho_client(self):
-        USERNAME = os.environ['OCTAVE_USERNAME']
-        PASSWORD = os.environ['OCTAVE_PASSWORD']
-        HOSTNAME = os.environ['OCTAVE_HOSTNAME']
-        PORT = os.environ['OCTAVE_PORT'] #1883
+        USERNAME = os.environ["OCTAVE_USERNAME"]
+        PASSWORD = os.environ["OCTAVE_PASSWORD"]
+        HOSTNAME = os.environ["OCTAVE_HOSTNAME"]
+        PORT = int(os.environ["OCTAVE_PORT"])
 
         client = paho.Client()
         client.username_pw_set(USERNAME, PASSWORD)
-        client.connect(HOSTNAME, PORT)
+
+        try:
+            client.connect(HOSTNAME, PORT)
+        except Exception as e:
+            logger.error(f"Error connecting to MQTT broker: {e}")
 
         return client

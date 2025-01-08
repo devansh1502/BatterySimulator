@@ -1,34 +1,25 @@
-import logging
-
 from flask import Flask, request, jsonify
 from uuid import uuid4
 from datetime import datetime
 
-from database.db import Session, configure_database
+from database.db import Session
 from database.models import Battery
 
 from src.octave_batteries import OctaveBattery
+from utils.utils import logger
 
 app = Flask(__name__)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
-formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(filename)s:%(lineno)d: %(message)s', datefmt='%d-%m-%Y %H:%M:%S')
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 @app.route("/<battery_id>", methods=["GET"])
 def get_battery(battery_id):
     try:
-        # TODO: can create decorators to start and terminate session
         session = Session()
 
         query = session.query(Battery)
         battery = query.filter_by(battery_id=battery_id).one_or_none()
         if battery is None:
-            logger.error(f"error: {e}, status code: 404")
-            return jsonify({"error": "Battery instance not found"}), 404
+            logger.error(f"error: Could not find the battery with ID: {battery_id}, status code: 404")
+            return jsonify({"error": f"Could not find the battery with ID: {battery_id}"}), 404
 
         return battery.to_dict(), 200
 
@@ -101,7 +92,6 @@ def delete_battery(battery_id):
     finally:
         session.close()
 
-# /update?battery_id=<id>&power=<int>&duration=<float>
 @app.route("/update", methods=["PATCH"])
 def update_battery():
     battery_id = request.args.get('battery_id', type=str)
@@ -112,6 +102,11 @@ def update_battery():
         logger.error("Missing battery_id, power or duration, status code: 400")
         return jsonify({"error": "Missing battery_id, power or duration"}), 400
 
+    if duration < 1:
+        raise ValueError("Min Duration should be 1 minute")
+
+    # Converting minutes to hours
+    duration = duration / 60
     try:
         session = Session()
 
@@ -121,18 +116,29 @@ def update_battery():
         print("battery_details", battery_details)
 
         if battery_details:
+            ob = OctaveBattery(
+                battery_details.battery_id,
+                battery_details.capacity_kwh,
+                battery_details.maximum_power_kw,
+                battery_details.state_of_charge,
+                battery_details.cycles,
+            )
             if power > 0:
-                # TODO: check method calling
-                battery_details = OctaveBattery.charge(battery_details, power, duration)
+                ob.charge(power, duration)
             elif power < 0:
-                battery_details = OctaveBattery.discharge(battery_details, power, duration)
+                ob.discharge(power, duration)
 
 
-            warning = OctaveBattery.get_warning(battery_details)
+            warning = ob.get_warning()
             if warning:
                 print("Warning: ", warning)
-                print("timestamp: ", datetime.now().isoformat())
-                # OctaveBattery.publish_warning(battery_details, warning)
+                ob.publish_warning(warning)
+
+            battery_details.battery_id = ob.battery_id
+            battery_details.capacity_kwh = ob.capacity_kwh
+            battery_details.maximum_power_kw = ob.maximum_power_kw
+            battery_details.state_of_charge = ob.state_of_charge
+            battery_details.cycles = ob.cycles
 
             session.merge(battery_details)
             session.commit()
@@ -209,7 +215,3 @@ def get_cycles():
 
     finally:
         session.close()
-
-if __name__ == "__main__":
-    configure_database()
-    app.run(port=8080)
