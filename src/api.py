@@ -1,9 +1,8 @@
 from flask import Flask, request, jsonify
 from uuid import uuid4
-from datetime import datetime
 
 from database.db import Session
-from database.models import Battery, GetBatteryID, CreateBattery, UpdateBattery
+from database.models import Battery, CreateBattery, UpdateBattery
 from pydantic import ValidationError
 
 from src.octave_batteries import OctaveBattery
@@ -24,9 +23,7 @@ def get_all_batteries():
         query = query.limit(limit).offset(offset) # setting limit and offset
 
         rows = query.all()
-        batteries = []
-        for r in rows:
-            batteries.append(r.to_dict())
+        batteries = [b.to_dict() for b in rows]
 
         next_offset = offset + limit # setting next offset
         next_link = None
@@ -51,19 +48,15 @@ def get_all_batteries():
 @app.route("/<battery_id>", methods=["GET"])
 def get_battery(battery_id):
     try:
-        validated = GetBatteryID(battery_id=battery_id)
         session = Session()
 
         query = session.query(Battery)
-        battery = query.filter_by(battery_id=validated.battery_id).one_or_none()
+        battery = query.filter_by(battery_id=battery_id).one_or_none()
         if battery is None:
             logger.error(f"error: Could not find the battery with ID: {battery_id}, status code: 404")
             return jsonify({"error": f"Could not find the battery with ID: {battery_id}"}), 404
 
         return battery.to_dict(), 200
-    except ValidationError as ve:
-        logger.error(f"error: Missing or incorrect required fields. Details: {ve}, status code: 400")
-        return jsonify({"error": f"Missing or incorrect required fields. Details: {str(ve)}"}), 400
 
     except Exception as e:
         logger.error(f"Internal Server Error: {e}, status code: 500")
@@ -110,11 +103,10 @@ def create_battery():
 @app.route("/<battery_id>", methods=["DELETE"])
 def delete_battery(battery_id):
     try:
-        validated = GetBatteryID(battery_id=battery_id)
         session = Session()
 
         query = session.query(Battery)
-        battery = query.filter_by(battery_id=validated.battery_id).one_or_none()
+        battery = query.filter_by(battery_id=battery_id).one_or_none()
         if battery is None:
             logger.error(f"error: Could not find the battery with ID: {battery_id}, status code: 404")
             return jsonify({"error": f"Could not find the battery with ID: {battery_id}"}), 404
@@ -122,12 +114,7 @@ def delete_battery(battery_id):
         session.delete(battery)
         session.commit()
 
-        # Could have used 204 (No Content) but want to return additional response message.
         return jsonify({"message": f"Battery instance with ID: {battery_id} deleted successfully"}), 200
-
-    except ValidationError as ve:
-        logger.error(f"error: Missing or incorrect required fields. Details: {ve}, status code: 400")
-        return jsonify({"error": f"Missing or incorrect required fields. Details: {str(ve)}"}), 400
 
     except Exception as e:
         session.rollback()
@@ -170,10 +157,7 @@ def update_battery():
             ob.discharge(validated.power, duration_in_hours)
 
 
-        warning = ob.get_warning()
-        if warning:
-            print("Warning: ", warning)
-            ob.publish_warning(warning)
+        ob.check_warning() #checking and publishing warning if any
 
         battery_details.battery_id = ob.battery_id
         battery_details.capacity_kwh = ob.capacity_kwh

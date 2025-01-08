@@ -6,8 +6,7 @@ from database.models import Battery
 
 @pytest.fixture(scope="module")
 def test_client():
-    # Using in memory db for testing
-    configure_database("sqlite:///:memory:")
+    configure_database("sqlite:///:memory:") # Using in memory db for testing
     with app.test_client() as client:
         yield client
 
@@ -17,6 +16,27 @@ def clean_db():
     session.query(Battery).delete()
     session.commit()
     session.close()
+
+def test_get_all_batteries(test_client):
+    batteries = [
+        {"capacity_kwh":10, "maximum_power_kw":1},
+        {"capacity_kwh":20, "maximum_power_kw":5},
+        {"capacity_kwh":30, "maximum_power_kw":10}
+    ]
+
+    battery_ids = []
+    for battery in batteries:
+        post_resp = test_client.post("/", json=battery)
+        assert post_resp.status_code == 201
+        battery_id = post_resp.get_json()["battery_id"]
+        battery_ids.append(battery_id)
+
+    response = test_client.get("/get?limit=2&offset=0")
+    assert response.status_code == 200
+    data = response.get_json()["batteries"]
+    assert len(data) == 2
+    assert data[0]["capacity_kwh"] == 10
+    assert data[1]["capacity_kwh"] == 20
 
 def test_create_battery(test_client):
     response = test_client.post("/", json={"capacity_kwh": 10, "maximum_power_kw": 5})

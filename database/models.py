@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Mapped, mapped_column
 from database.db import Base
 from pydantic import BaseModel, Field
-from typing import Optional
 
 class Battery(Base):
     __tablename__ = 'batteries'
@@ -13,7 +12,6 @@ class Battery(Base):
     cycles: Mapped[float] = mapped_column(nullable=False, default=0.0) # 0 cycles when created
 
     def to_dict(self):
-        # Convert the battery instance to a dictionary
         return {
             "battery_id": self.battery_id,
             "capacity_kwh": self.capacity_kwh,
@@ -21,12 +19,6 @@ class Battery(Base):
             "state_of_charge": str(self.state_of_charge)+"%",
             "cycles": self.cycles
         }
-
-class GetBatteryID(BaseModel):
-    battery_id: str = Field(..., description="Unique Battery ID")
-
-class GetBatteryIDOptional(BaseModel):
-    battery_id: Optional[str] = Field(..., description="Unique Battery ID")
 
 class CreateBattery(BaseModel):
     capacity_kwh: float = Field(..., gt=0, description="Capacity should be greater than 0")

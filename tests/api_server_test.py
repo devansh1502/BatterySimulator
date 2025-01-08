@@ -3,10 +3,15 @@ from unittest.mock import patch
 from src import api
 
 def test_get_battery_exception():
-    # app context reqd by flask app to run, fixes issue related working outside app context
+    # Note: using app context fixes working outside app context and reqd by flask.
     # Mocking Session object to raise exception
     with patch("src.api.Session", MySession), api.app.app_context():
         resp, status_code = api.get_battery("/1")
+        assert status_code == 500
+
+def test_get_all_batteries_exception():
+    with patch("src.api.Session", MySession), api.app.app_context():
+        resp, status_code = api.get_all_batteries()
         assert status_code == 500
 
 def test_create_battery_exception():
