@@ -20,6 +20,10 @@ def get_all_batteries():
         offset = request.args.get("offset", type=int, default=0)
 
         total = query.count()  # counting total values before setting limit and offset
+        if offset < 0 or offset >= total:
+            logger.error(f"error: offset uses 0 based indexing, offset is greater than total {total}, status code: 400")
+            return jsonify({"error": f"offset uses 0 based indexing, offset is greater than total {total}"}), 400
+
         query = query.limit(limit).offset(offset)  # setting limit and offset
 
         rows = query.all()
@@ -231,12 +235,12 @@ def get_cycles():
 
             return jsonify({
                 "battery_id": battery_id,
-                "cycles": battery.cycles
+                "cycles": round(battery.cycles, 2)
                 }), 200
         else:
             batteries = query.all()
             return jsonify([
-                {"battery_id": b.battery_id, "cycles": b.cycles} for b in batteries
+                {"battery_id": b.battery_id, "cycles": round(b.cycles, 2)} for b in batteries
                 ])
 
     except Exception as e:

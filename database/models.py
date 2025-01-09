@@ -23,7 +23,7 @@ class Battery(Base):
             "capacity_kwh": self.capacity_kwh,
             "maximum_power_kw": self.maximum_power_kw,
             "state_of_charge": str(self.state_of_charge) + "%",
-            "cycles": self.cycles,
+            "cycles": round(self.cycles, 2),
         }
 
 

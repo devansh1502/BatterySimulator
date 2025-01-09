@@ -147,6 +147,12 @@ def test_get_cycle(test_client):
 
     assert data["cycles"] == 0.1
 
+def test_get_all_batteries_invalid_offset(test_client):
+    response = test_client.post("/", json={"capacity_kwh": 10, "maximum_power_kw": 1})
+    assert response.status_code == 201
+
+    response = test_client.get("/get?limit=2&offset=2")
+    assert response.status_code == 400
 
 def test_create_battery_with_invalid_data(test_client):
     response = test_client.post("/", json={"capacity_kwh": -10, "maximum_power_kw": 0})
